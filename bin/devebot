@@ -1,0 +1,146 @@
+#!/usr/bin/env node
+
+'use strict';
+
+var Promise = require('bluebird');
+var lodash = require('lodash');
+var util = require('util');
+var program = require('commander');
+var homecfg = require('home-config');
+var superagent = require('superagent');
+var appinfo = require('../lib/utils/appinfo.js');
+var logger = require('../lib/utils/logger.js');
+
+var cfg = homecfg.load('.devebotrc', {
+    devebot_host: '0.0.0.0',
+    devebot_port: 17779,
+    devebot_path: '/devebot'
+});
+
+var loadDefinition = function(callback) {
+  logger.trace(' * load commandline definition with cfg: %s', JSON.stringify(cfg, null, 2));
+  
+  var url = util.format('http://%s:%s%s/clidef', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
+  
+  logger.trace(' + send a get request to [%s] to get commandline definition', url);
+  
+  superagent.get(url)
+  .type('application/json')
+  .accept('application/json')
+  .end(function(err, res) {
+    if (err) {
+      logger.trace(' -> failure on requesting commandline definition: %s', err);
+      callback({
+        name: 'restapi_request_error',
+        error: err
+      });
+      return;
+    } else if (res.status != 200) {
+      logger.trace(' -> invalide status on requesting commandline definition: %s', res.status);
+      callback({
+        name: 'restapi_invalid_status',
+        status: res.status
+      });
+      return;
+    } else {
+      var result = res.body;
+      logger.trace(' -> success on requesting commandline definition: %s', JSON.stringify(result, null, 2));
+      callback(null, result);
+    }
+  });
+};
+
+var buildCmdline = function(clidef, callback) {
+  clidef = clidef || {};
+  logger.trace(' * build commandline with definition: %s', JSON.stringify(clidef, null, 2));
+
+  var commands = clidef.commands || [];
+  for(var i=0; i<commands.length; i++) {
+    var command = commands[i];
+    
+    var cmddef = program.command(command.name).description(command.description);
+    
+    var options = command.options || [];
+    for(var k=0; k<options.length; k++) {
+      var option = options[k];
+      cmddef = cmddef.option(util.format('-%s --%s %s', 
+          option.abbr, option.name, option.required?'<value>':'[value]'), 
+          option.description);
+    }
+    
+    var optionNames = lodash.map(options, function(option) {
+      return option.name;
+    });
+    
+    cmddef = cmddef.action(function(values) {
+      var posturl = util.format('http://%s:%s%s/runner', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
+      var postdata = {
+        command: command.name,
+        options: lodash.pick(values, optionNames) 
+      };
+      
+      logger.trace(' + post to [%s] to execute the command [%s]', posturl, command.name);
+      
+      superagent.post(posturl)
+      .type('application/json')
+      .accept('application/json')
+      .send(postdata)
+      .end(function(err, res) {
+        logger.trace(' - response: ' + JSON.stringify(res, null, 2));
+        if (err) {
+          logger.trace(' -> failure on executing command %s: %s', command.name, err);
+          callback(err);
+        } else {
+          var result = res.body;
+          logger.trace(' -> success on executing command %s: %s', command.name, JSON.stringify(result));
+          callback(err, result);
+        }
+      });
+    });
+  }
+  
+  program.parse(process.argv);
+};
+
+var displayDevebot = function(clidef) {
+  var info = clidef.appinfo || { name: 'devebot', version: '0.0.0'};
+  program.version(info.version);
+  console.log('%s: %s (v%s)', info.name, info.description, info.version);
+};
+
+var displayResult = function(result) {
+  console.log('');
+  process.stdout.write(util.format('Command result: %s\n', JSON.stringify(result, null, 2)));
+};
+
+var displayError = function(error) {
+  console.log('');
+  if (lodash.isObject(error)) {
+    if (error.name == 'restapi_request_error' || error.name == 'restapi_invalid_status') {
+      [
+        "Fatal error: Unable to find devebot service.",
+        "",
+        "If you're seeing this message, either the devebot service hasn't been installed,",
+        "or it is running incorrectly.",
+      ].forEach(function(str) { process.stderr.write(util.format('%s\n', str)); });
+    } else {
+      process.stderr.write(util.format('Command error: %s\n', JSON.stringify(error, null, 2)));
+    }
+  } else {
+    process.stderr.write(util.format('Unknown error: %s\n', error));
+  }
+};
+
+Promise.resolve().then(function() {
+  appinfo.displayCliHeader();
+  return Promise.promisify(loadDefinition)();
+}).then(function(clidef) {
+  displayDevebot(clidef);
+  return Promise.promisify(buildCmdline)(clidef);
+}).then(function(result) {
+  displayResult(result);
+}).catch(function(error) {
+  displayError(error);
+}).finally(function() {
+  appinfo.displayCliFooter();
+});
