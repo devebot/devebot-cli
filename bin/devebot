@@ -25,6 +25,7 @@ var loadDefinition = function(callback) {
   logger.trace(' + send a get request to [%s] to get commandline definition', url);
   
   superagent.get(url)
+  .set('user-agent', appinfo.useragent)
   .type('application/json')
   .accept('application/json')
   .end(function(err, res) {
@@ -55,6 +56,7 @@ var buildCmdline = function(clidef, callback) {
   logger.trace(' * build commandline with definition: %s', JSON.stringify(clidef, null, 2));
 
   var commands = clidef.commands || [];
+
   for(var i=0; i<commands.length; i++) {
     var command = commands[i];
     
@@ -72,31 +74,34 @@ var buildCmdline = function(clidef, callback) {
       return option.name;
     });
     
-    cmddef = cmddef.action(function(values) {
-      var posturl = util.format('http://%s:%s%s/runner', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
-      var postdata = {
-        command: command.name,
-        options: lodash.pick(values, optionNames) 
+    cmddef = cmddef.action((function(command, optionNames) {
+      return function(values) {
+        var posturl = util.format('http://%s:%s%s/runner', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
+        var postdata = {
+          command: command.name,
+          options: lodash.pick(values, optionNames) 
+        };
+        
+        logger.trace(' + post to [%s] to execute the command [%s]', posturl, command.name);
+        
+        superagent.post(posturl)
+        .set('user-agent', appinfo.useragent)
+        .type('application/json')
+        .accept('application/json')
+        .send(postdata)
+        .end(function(err, res) {
+          logger.trace(' - response: ' + JSON.stringify(res, null, 2));
+          if (err) {
+            logger.trace(' -> failure on executing command %s: %s', command.name, err);
+            callback(err);
+          } else {
+            var result = res.body;
+            logger.trace(' -> success on executing command %s: %s', command.name, JSON.stringify(result));
+            callback(err, result);
+          }
+        });
       };
-      
-      logger.trace(' + post to [%s] to execute the command [%s]', posturl, command.name);
-      
-      superagent.post(posturl)
-      .type('application/json')
-      .accept('application/json')
-      .send(postdata)
-      .end(function(err, res) {
-        logger.trace(' - response: ' + JSON.stringify(res, null, 2));
-        if (err) {
-          logger.trace(' -> failure on executing command %s: %s', command.name, err);
-          callback(err);
-        } else {
-          var result = res.body;
-          logger.trace(' -> success on executing command %s: %s', command.name, JSON.stringify(result));
-          callback(err, result);
-        }
-      });
-    });
+    })(command, optionNames));
   }
   
   program.parse(process.argv);
