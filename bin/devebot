@@ -8,6 +8,8 @@ var util = require('util');
 var program = require('commander');
 var homecfg = require('home-config');
 var superagent = require('superagent');
+var WebSocket = require('ws');
+
 var appinfo = require('../lib/utils/appinfo.js');
 var logger = require('../lib/utils/logger.js');
 
@@ -21,7 +23,7 @@ var loadDefinition = function(callback) {
   logger.trace(' * load commandline definition with cfg: %s', JSON.stringify(cfg, null, 2));
   
   var url = util.format('http://%s:%s%s/clidef', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
-  
+
   logger.trace(' + send a get request to [%s] to get commandline definition', url);
   
   superagent.get(url)
@@ -52,6 +54,7 @@ var loadDefinition = function(callback) {
 };
 
 var buildCmdline = function(clidef, callback) {
+
   clidef = clidef || {};
   logger.trace(' * build commandline with definition: %s', JSON.stringify(clidef, null, 2));
 
@@ -76,30 +79,70 @@ var buildCmdline = function(clidef, callback) {
     
     cmddef = cmddef.action((function(command, optionNames) {
       return function(values) {
-        var posturl = util.format('http://%s:%s%s/runner', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
-        var postdata = {
-          command: command.name,
-          options: lodash.pick(values, optionNames) 
-        };
-        
-        logger.trace(' + post to [%s] to execute the command [%s]', posturl, command.name);
-        
-        superagent.post(posturl)
-        .set('user-agent', appinfo.useragent)
-        .type('application/json')
-        .accept('application/json')
-        .send(postdata)
-        .end(function(err, res) {
-          logger.trace(' - response: ' + JSON.stringify(res, null, 2));
-          if (err) {
-            logger.trace(' -> failure on executing command %s: %s', command.name, err);
-            callback(err);
-          } else {
-            var result = res.body;
-            logger.trace(' -> success on executing command %s: %s', command.name, JSON.stringify(result));
-            callback(err, result);
-          }
-        });
+        if (command.isQuery) {
+          var posturl = util.format('http://%s:%s%s/runner', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
+          var postdata = {
+            command: command.name,
+            options: lodash.pick(values, optionNames) 
+          };
+          
+          logger.trace(' + post to [%s] to execute the command [%s]', posturl, command.name);
+          
+          superagent.post(posturl)
+          .set('user-agent', appinfo.useragent)
+          .type('application/json')
+          .accept('application/json')
+          .send(postdata)
+          .end(function(err, res) {
+            logger.trace(' - response: ' + JSON.stringify(res, null, 2));
+            if (err) {
+              logger.trace(' -> failure on executing command %s: %s', command.name, err);
+              callback(err);
+            } else {
+              var result = res.body;
+              logger.trace(' -> success on executing command %s: %s', command.name, JSON.stringify(result));
+              callback(err, result);
+            }
+          });
+        } else {
+          var wsUrl = util.format('ws://%s:%s%s/execute', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
+          var ws = new WebSocket(wsUrl);
+   
+          var wsCommand = {
+            command: command.name,
+            options: lodash.pick(values, optionNames)
+          };
+          
+          ws.on('open', function open() {
+            ws.send(JSON.stringify(wsCommand));
+          });
+          
+          ws.on('message', function incomming(data) {
+            data = JSON.parse(data);
+            switch(data.state) {
+              case 'enqueque':
+                break;
+              case 'progress':
+                break;
+              case 'failed':
+                displayError(data.error);
+                break;
+              case 'complete':
+                displayResult(data.result);
+                break;
+              case 'done':
+                ws.close();
+                callback(null);
+                break;
+              case 'noop':
+                ws.close();
+                callback('operation is not implemented');
+                break;
+              default:
+                break;
+            }
+          });
+        }
       };
     })(command, optionNames));
   }
@@ -142,10 +185,6 @@ Promise.resolve().then(function() {
 }).then(function(clidef) {
   displayDevebot(clidef);
   return Promise.promisify(buildCmdline)(clidef);
-}).then(function(result) {
-  displayResult(result);
-}).catch(function(error) {
-  displayError(error);
 }).finally(function() {
   appinfo.displayCliFooter();
 });
