@@ -128,7 +128,7 @@ var buildCmdline = function(clidef, callback) {
                 displayError(data.error);
                 break;
               case 'complete':
-                displayResult(data.result);
+                displayResult(data.value || data.result);
                 break;
               case 'done':
                 ws.close();
@@ -148,12 +148,6 @@ var buildCmdline = function(clidef, callback) {
   }
   
   program.parse(process.argv);
-};
-
-var displayDevebot = function(clidef) {
-  var info = clidef.appinfo || { name: 'devebot', version: '0.0.0'};
-  program.version(info.version);
-  console.log('%s: %s (v%s)', info.name, info.description, info.version);
 };
 
 var displayResult = function(result) {
@@ -180,11 +174,15 @@ var displayError = function(error) {
 };
 
 Promise.resolve().then(function() {
-  appinfo.displayCliHeader();
   return Promise.promisify(loadDefinition)();
 }).then(function(clidef) {
-  displayDevebot(clidef);
-  return Promise.promisify(buildCmdline)(clidef);
-}).finally(function() {
+  return Promise.resolve().then(function() {
+    appinfo.displayCliHeader(clidef);
+    return Promise.promisify(buildCmdline)(clidef);
+  }).then(function() {
+    appinfo.displayCliFooter(clidef);
+    return Promise.resolve();
+  });
+}).catch(function(exception) {
   appinfo.displayCliFooter();
 });
