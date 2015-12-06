@@ -7,8 +7,6 @@ var lodash = require('lodash');
 var util = require('util');
 var program = require('commander');
 var homecfg = require('home-config');
-var superagent = require('superagent');
-var WebSocket = require('ws');
 
 var appinfo = require('../lib/utils/appinfo.js');
 var logger = require('../lib/utils/logger.js');
@@ -19,41 +17,36 @@ var cfg = homecfg.load('.devebotrc', {
     devebot_path: '/devebot'
 });
 
-var loadDefinition = function(callback) {
-  logger.trace(' * load commandline definition with cfg: %s', JSON.stringify(cfg, null, 2));
-  
-  var url = util.format('http://%s:%s%s/clidef', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
+var DevebotApi = require('devebot-api');
 
-  logger.trace(' + send a get request to [%s] to get commandline definition', url);
-  
-  superagent.get(url)
-  .set('user-agent', appinfo.useragent)
-  .type('application/json')
-  .accept('application/json')
-  .end(function(err, res) {
-    if (err) {
-      logger.trace(' -> failure on requesting commandline definition: %s', err);
-      callback({
-        name: 'restapi_request_error',
-        error: err
-      });
-      return;
-    } else if (res.status != 200) {
-      logger.trace(' -> invalide status on requesting commandline definition: %s', res.status);
-      callback({
-        name: 'restapi_invalid_status',
-        status: res.status
-      });
-      return;
-    } else {
-      var result = res.body;
-      logger.trace(' -> success on requesting commandline definition: %s', JSON.stringify(result, null, 2));
-      callback(null, result);
-    }
-  });
-};
+var devebot = new DevebotApi({
+  host: cfg.devebot_host,
+  port: cfg.devebot_port,
+  path: cfg.devebot_path,
+  logger: logger
+});
 
-var buildCmdline = function(clidef, callback) {
+devebot.on('started', function() {
+  logger.debug(' The command is started');
+});
+
+devebot.on('success', function(data) {
+  displayResult(data.value || data.result);
+});
+
+devebot.on('failure', function(data) {
+  displayError(data.error);
+});
+
+devebot.on('done', function() {
+  logger.debug(' - The command is done');
+});
+
+devebot.on('noop', function() {
+  logger.debug(' - The command not found');
+});
+
+var buildCmdline = function(devebot, clidef, callback) {
 
   clidef = clidef || {};
   logger.trace(' * build commandline with definition: %s', JSON.stringify(clidef, null, 2));
@@ -79,70 +72,10 @@ var buildCmdline = function(clidef, callback) {
     
     cmddef = cmddef.action((function(command, optionNames) {
       return function(values) {
-        if (command.isQuery) {
-          var posturl = util.format('http://%s:%s%s/runner', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
-          var postdata = {
-            command: command.name,
-            options: lodash.pick(values, optionNames) 
-          };
-          
-          logger.trace(' + post to [%s] to execute the command [%s]', posturl, command.name);
-          
-          superagent.post(posturl)
-          .set('user-agent', appinfo.useragent)
-          .type('application/json')
-          .accept('application/json')
-          .send(postdata)
-          .end(function(err, res) {
-            logger.trace(' - response: ' + JSON.stringify(res, null, 2));
-            if (err) {
-              logger.trace(' -> failure on executing command %s: %s', command.name, err);
-              callback(err);
-            } else {
-              var result = res.body;
-              logger.trace(' -> success on executing command %s: %s', command.name, JSON.stringify(result));
-              callback(err, result);
-            }
-          });
-        } else {
-          var wsUrl = util.format('ws://%s:%s%s/execute', cfg.devebot_host, cfg.devebot_port, cfg.devebot_path);
-          var ws = new WebSocket(wsUrl);
-   
-          var wsCommand = {
-            command: command.name,
-            options: lodash.pick(values, optionNames)
-          };
-          
-          ws.on('open', function open() {
-            ws.send(JSON.stringify(wsCommand));
-          });
-          
-          ws.on('message', function incomming(data) {
-            data = JSON.parse(data);
-            switch(data.state) {
-              case 'enqueque':
-                break;
-              case 'progress':
-                break;
-              case 'failed':
-                displayError(data.error);
-                break;
-              case 'complete':
-                displayResult(data.value || data.result);
-                break;
-              case 'done':
-                ws.close();
-                callback(null);
-                break;
-              case 'noop':
-                ws.close();
-                callback('operation is not implemented');
-                break;
-              default:
-                break;
-            }
-          });
-        }
+        devebot.execCommand({
+          name: command.name,
+          options: lodash.pick(values, optionNames)
+        }, callback);
       };
     })(command, optionNames));
   }
@@ -174,11 +107,11 @@ var displayError = function(error) {
 };
 
 Promise.resolve().then(function() {
-  return Promise.promisify(loadDefinition)();
+  return Promise.promisify(devebot.loadDefinition)();
 }).then(function(clidef) {
   return Promise.resolve().then(function() {
     appinfo.displayCliHeader(clidef);
-    return Promise.promisify(buildCmdline)(clidef);
+    return Promise.promisify(buildCmdline)(devebot, clidef);
   }).then(function() {
     appinfo.displayCliFooter(clidef);
     return Promise.resolve();
