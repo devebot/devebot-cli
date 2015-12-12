@@ -32,8 +32,8 @@
     "bluebird": "^3.0.4",
     "commander": "^2.9.0",
     "devebot-api": "^0.0.4",
-    "home-config": "^0.1.0",
     "lodash": "^3.10.1",
+    "userhome": "^1.0.0",
     "winston": "^1.0.1"
   }
 }

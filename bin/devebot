@@ -6,25 +6,18 @@ var Promise = require('bluebird');
 var lodash = require('lodash');
 var util = require('util');
 var program = require('commander');
-var homecfg = require('home-config');
 
 var appinfo = require('../lib/utils/appinfo.js');
+var homecfg = require('../lib/utils/homecfg.js');
 var logger = require('../lib/utils/logger.js');
 
-var cfg = homecfg.load('.devebotrc', {
-    devebot_host: '0.0.0.0',
-    devebot_port: 17779,
-    devebot_path: '/devebot'
-});
+var cfg = homecfg.getConfig();
 
 var DevebotApi = require('devebot-api');
 
-var devebot = new DevebotApi({
-  host: cfg.devebot_host,
-  port: cfg.devebot_port,
-  path: cfg.devebot_path,
+var devebot = new DevebotApi(lodash.extend(cfg, {
   logger: logger
-});
+}));
 
 devebot.on('started', function() {
   logger.debug(' The command is started');
