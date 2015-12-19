@@ -1,11 +1,11 @@
 {
   "name": "devebot-cli",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "description": "command line interface",
-  "main": "index.js",
+  "main": "lib/client.js",
   "preferGlobal": true,
   "bin": {
-    "devebot": "./bin/devebot"
+    "devebot": "./bin/cli"
   },
   "engines": {
     "node": "0.10 || 0.12 || 4"
