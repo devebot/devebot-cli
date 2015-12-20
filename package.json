@@ -1,6 +1,6 @@
 {
   "name": "devebot-cli",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "command line interface",
   "main": "lib/client.js",
   "preferGlobal": true,
