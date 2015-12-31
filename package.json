@@ -30,8 +30,10 @@
   "homepage": "https://github.com/devebot/devebot-cli#readme",
   "dependencies": {
     "bluebird": "^3.0.4",
+    "cli-table2": "^0.1.9",
     "commander": "^2.9.0",
     "devebot-api": "^0.0.4",
+    "jsonschema": "^1.0.2",
     "lodash": "^3.10.1",
     "userhome": "^1.0.0",
     "winston": "^2.1.1"
