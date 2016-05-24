@@ -1,6 +1,6 @@
 {
   "name": "devebot-cli",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "command line interface",
   "main": "lib/client.js",
   "preferGlobal": true,
@@ -32,7 +32,7 @@
     "bluebird": "^3.4.0",
     "cli-table2": "^0.2.0",
     "commander": "^2.9.0",
-    "devebot-api": "^0.1.4",
+    "devebot-api": "^0.1.5",
     "jsonschema": "^1.1.0",
     "lodash": "^4.12.0",
     "userhome": "^1.0.0",
