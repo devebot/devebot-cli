@@ -1,14 +1,14 @@
 {
   "name": "devebot-cli",
-  "version": "0.1.12",
-  "description": "command line interface",
+  "version": "0.2.0",
+  "description": "Devebot Commandline Interface",
   "main": "lib/client.js",
   "preferGlobal": true,
   "bin": {
     "devebot": "./bin/cli"
   },
   "engines": {
-    "node": ">= 0.10"
+    "node": ">= 0.12"
   },
   "scripts": {
     "test": "echo \"no test specified\" && exit 0"
@@ -22,8 +22,8 @@
     "cli",
     "commandline"
   ],
-  "author": "Hung Pham <pnhung177@acegik.net> (http://acegik.net/blog)",
-  "license": "GPL-3.0",
+  "author": "devebot",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/devebot/devebot-cli/issues"
   },
@@ -32,7 +32,7 @@
     "bluebird": "^3.4.0",
     "cli-table2": "^0.2.0",
     "commander": "^2.9.0",
-    "devebot-api": "^0.1.5",
+    "devebot-api": "^0.2.1",
     "jsonschema": "^1.1.0",
     "lodash": "^4.12.0",
     "userhome": "^1.0.0",
