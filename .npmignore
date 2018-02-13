@@ -1,0 +1,6 @@
+examples
+node_modules
+test
+.hit
+.gitignore
+.npmignore
