@@ -1,4 +1,5 @@
 #!/usr/bin/env node
 
+// default command-line-interface object
 var cli = require('../lib/client.js');
 cli();
