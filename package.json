@@ -7,9 +7,6 @@
   "bin": {
     "devebot": "./bin/cli"
   },
-  "engines": {
-    "node": ">= 0.12"
-  },
   "scripts": {
     "test": "echo \"no test specified\" && exit 0"
   },
