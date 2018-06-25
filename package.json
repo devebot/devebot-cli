@@ -1,14 +1,27 @@
 {
   "name": "devebot-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Devebot Commandline Interface",
   "main": "lib/client.js",
   "preferGlobal": true,
   "bin": {
     "devebot": "./bin/cli"
   },
+  "directories": {
+    "lib": "lib/"
+  },
+  "files": [
+    "bin/",
+    "data/",
+    "lib/"
+  ],
   "scripts": {
-    "test": "echo \"no test specified\" && exit 0"
+    "build": "babel ./src -d ./lib",
+    "clean": "rm -rf ./lib",
+    "prepublish": "npm run clean && NODE_ENV=${DEVEBOT_NODE_ENV:-production} npm run build",
+    "pretest": "npm run clean && NODE_ENV=${DEVEBOT_NODE_ENV:-test} npm run build",
+    "test": "mocha --recursive ./test/**/*-test.js",
+    "verify": "npm run prepublish && mocha --recursive ./test/**/*-test.js"
   },
   "repository": {
     "type": "git",
@@ -36,6 +49,10 @@
     "winston": "^2.2.0"
   },
   "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-plugin-minify-mangle-names": "^0.3.0",
+    "babel-plugin-transform-async-to-module-method": "^6.24.1",
+    "babel-preset-env": "^1.6.1",
     "mocha": "^4.1.0"
   }
 }

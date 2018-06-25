@@ -64,12 +64,12 @@ module.exports = function(params) {
     tui.displayException(error);
   });
 
-  var init = Promise.promisify(adapter.loadDefinition);
+  var init = Promise.promisify(adapter.loadDefinition, { context: adapter });
   init().then(function(clidef) {
     tui.displayCliHeader(clidef);
-    return run(adapter, clidef).then(function() {
-      tui.displayCliFooter(clidef);
-    });
+    return run(adapter, clidef);
+  }).then(function() {
+    tui.displayCliFooter(clidef);
   }).catch(function(exception) {
     tui.displayException(exception);
   });
@@ -79,9 +79,9 @@ var run = function(adapter, clidef) {
   return Promise.promisify(function(callback) {
     clidef = clidef || {};
     logger.trace(' * cli definition: %s', JSON.stringify(clidef, null, 2));
-  
+
     var commands = clidef.commands || [];
-  
+
     for(var i=0; i<commands.length; i++) {
       var command = commands[i];
       
