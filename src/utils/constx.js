@@ -12,7 +12,7 @@ var constx = {
         "message": {
           "type": "string"
         },
-        "details": {
+        "payload": {
           "type": "array",
           "items": {
             "oneOf": [{

@@ -22,9 +22,9 @@ function TextUI(params) {
   this.displayCliHeader = function(clidef) {
     clidef = clidef || {};
     var serverInfo = clidef.appinfo;
-    console.log('%s: %s (v%s)', clientInfo.name, clientInfo.description, clientInfo.version);
-    if (lodash.isObject(serverInfo)) {
-      console.log('%s: %s (v%s)', serverInfo.name, serverInfo.description, serverInfo.version);
+    console.log('Client[%s]: %s (v%s)', clientInfo.name, clientInfo.description, clientInfo.version);
+    if (lodash.isObject(serverInfo) && serverInfo.name != clientInfo.name) {
+      console.log('Server[%s]: %s (v%s)', serverInfo.name, serverInfo.description, serverInfo.version);
     }
   };
   
@@ -65,7 +65,7 @@ function TextUI(params) {
     } else {
       var options = {};
       options.isError = (output.state == 'failed');
-      var info = output.details || [];
+      var info = output.payload || [];
       if (!lodash.isArray(info)) info = [info];
       info.forEach(function(infoItem) {
         renderBlock(infoItem, options);

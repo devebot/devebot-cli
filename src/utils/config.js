@@ -12,7 +12,7 @@ function HomeConfig(params) {
   var configContext = process.env[environmentVar];
   var configSubdir = params.configSubdir || '.devebot';
   var configFilename = params.configFilename || 'config';
-  var defaultConfig = params.defaultConfig || {
+  var defaultConfig = lodash.merge({
     protocol: 'http',
     host: '0.0.0.0',
     port: 17779,
@@ -25,7 +25,7 @@ function HomeConfig(params) {
       enabled: true,
       rejectUnauthorized: false
     }
-  };
+  }, params.defaultConfig);
   
   var self = this;
 
